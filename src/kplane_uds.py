@@ -1,15 +1,19 @@
 from __future__ import annotations
 
+import contextlib
 import os
 import socket
 from pathlib import Path
 
 from kplane_protocol import MAX_FRAME_SIZE, KMessage, ProtocolError, decode_frame, encode_frame
 
+# Typeshed omits AF_UNIX on some platforms (e.g. Windows); CPython may still define it at runtime.
+AF_UNIX_FAMILY: int = getattr(socket, "AF_UNIX", -1)
+
 
 def _is_unix_stream(sock: socket.socket) -> bool:
     """True only for AF_UNIX + SOCK_STREAM (flags on type masked)."""
-    if sock.family != socket.AF_UNIX:
+    if sock.family != AF_UNIX_FAMILY:
         return False
     masked = sock.type
     if hasattr(socket, "SOCK_NONBLOCK"):
@@ -21,12 +25,10 @@ def _is_unix_stream(sock: socket.socket) -> bool:
 def create_server_socket(path: str, backlog: int = 1) -> socket.socket:
     """Create a local AF_UNIX / SOCK_STREAM server socket only."""
     sock_path = Path(path)
-    try:
+    with contextlib.suppress(FileNotFoundError):
         os.unlink(sock_path)
-    except FileNotFoundError:
-        pass
 
-    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    server = socket.socket(AF_UNIX_FAMILY, socket.SOCK_STREAM)
     server.bind(str(sock_path))
     server.listen(backlog)
     return server
@@ -34,7 +36,7 @@ def create_server_socket(path: str, backlog: int = 1) -> socket.socket:
 
 def connect_client(path: str) -> socket.socket:
     """Connect to a local AF_UNIX / SOCK_STREAM socket only."""
-    client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    client = socket.socket(AF_UNIX_FAMILY, socket.SOCK_STREAM)
     client.connect(path)
     return client
 
@@ -78,16 +80,12 @@ def recv_message(sock: socket.socket) -> KMessage:
 
 
 def _fail_closed_shutdown(sock: socket.socket) -> None:
-    try:
+    with contextlib.suppress(OSError):
         sock.shutdown(socket.SHUT_RDWR)
-    except OSError:
-        pass
-    try:
+    with contextlib.suppress(OSError):
         sock.close()
-    except OSError:
-        pass
 
 
 def socketpair() -> tuple[socket.socket, socket.socket]:
     """Local full-duplex AF_UNIX / SOCK_STREAM pair for tests only."""
-    return socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
+    return socket.socketpair(AF_UNIX_FAMILY, socket.SOCK_STREAM)

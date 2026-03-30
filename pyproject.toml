@@ -18,8 +18,10 @@ dev = [
 ]
 
 [tool.setuptools]
-package-dir = { "" = "src" }
 py-modules = ["kplane_protocol", "kplane_uds"]
+
+[tool.setuptools.package-dir]
+"" = "src"
 
 [tool.ruff]
 target-version = "py311"
@@ -51,6 +53,3 @@ addopts = "-q --strict-markers --import-mode=importlib"
 markers = [
     "hypothesis: property-based / fuzz tests (deterministic profile in tests/conftest.py)",
 ]
-
-[tool.hypothesis]
-deadline = null

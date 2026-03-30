@@ -1,10 +1,8 @@
 from __future__ import annotations
 
+import struct
 from dataclasses import dataclass
 from enum import IntEnum
-import struct
-from typing import List
-
 
 # Conservative local boundary. Runtime tuning is deferred.
 MAX_FRAME_SIZE = 64 * 1024
@@ -71,11 +69,11 @@ class FrameReader:
     def __init__(self) -> None:
         self._buffer = bytearray()
 
-    def feed(self, data: bytes) -> List[KMessage]:
+    def feed(self, data: bytes) -> list[KMessage]:
         if not data:
             return []
         self._buffer.extend(data)
-        messages: List[KMessage] = []
+        messages: list[KMessage] = []
 
         while True:
             if len(self._buffer) < _LENGTH_PREFIX.size:

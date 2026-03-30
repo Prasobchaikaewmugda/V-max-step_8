@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import contextlib
 import socket
 import unittest
 
-from kplane_protocol import KMessage, MAX_FRAME_SIZE, MessageKind, ProtocolError, encode_frame
-from kplane_uds import recv_message, send_message, socketpair
+from kplane_protocol import MAX_FRAME_SIZE, KMessage, MessageKind, ProtocolError, encode_frame
+from kplane_uds import AF_UNIX_FAMILY, recv_message, send_message, socketpair
 
 
 def _af_unix_socketpair_available() -> bool:
@@ -49,9 +50,9 @@ class KPlaneUDSAFUnixTests(unittest.TestCase):
     def test_socketpair_is_local_stream(self) -> None:
         left, right = socketpair()
         try:
-            self.assertEqual(left.family, socket.AF_UNIX)
+            self.assertEqual(left.family, AF_UNIX_FAMILY)
             self.assertEqual(left.type & socket.SOCK_STREAM, socket.SOCK_STREAM)
-            self.assertEqual(right.family, socket.AF_UNIX)
+            self.assertEqual(right.family, AF_UNIX_FAMILY)
             self.assertEqual(right.type & socket.SOCK_STREAM, socket.SOCK_STREAM)
         finally:
             left.close()
@@ -65,10 +66,8 @@ class KPlaneUDSAFUnixTests(unittest.TestCase):
             self.assertEqual(received, KMessage(MessageKind.HEARTBEAT, b"hb"))
         finally:
             left.close()
-            try:
+            with contextlib.suppress(OSError):
                 right.close()
-            except OSError:
-                pass
 
     def test_garbage_rejected_fail_closed(self) -> None:
         left, right = socketpair()
@@ -78,10 +77,8 @@ class KPlaneUDSAFUnixTests(unittest.TestCase):
                 recv_message(right)
         finally:
             left.close()
-            try:
+            with contextlib.suppress(OSError):
                 right.close()
-            except OSError:
-                pass
 
     def test_recv_fail_closed_shuts_receiver_after_garbage(self) -> None:
         """Second recv on the same socket must not succeed after malformed frame handling."""
@@ -94,17 +91,13 @@ class KPlaneUDSAFUnixTests(unittest.TestCase):
                 recv_message(right)
         finally:
             left.close()
-            try:
+            with contextlib.suppress(OSError):
                 right.close()
-            except OSError:
-                pass
 
     def _close_pair(self, left: socket.socket, right: socket.socket) -> None:
         left.close()
-        try:
+        with contextlib.suppress(OSError):
             right.close()
-        except OSError:
-            pass
 
     def test_disconnect_before_header_completes(self) -> None:
         left, right = socketpair()

@@ -3,9 +3,9 @@ from __future__ import annotations
 import unittest
 
 from kplane_protocol import (
+    MAX_FRAME_SIZE,
     FrameReader,
     KMessage,
-    MAX_FRAME_SIZE,
     MessageKind,
     ProtocolError,
     decode_frame,

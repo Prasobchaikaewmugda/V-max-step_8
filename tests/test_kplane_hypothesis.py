@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import contextlib
+import sys
 from typing import Any
 
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from kplane_protocol import (
     MAX_FRAME_SIZE,
@@ -22,6 +25,12 @@ pytestmark = pytest.mark.hypothesis
 
 _valid_kind = st.sampled_from(
     [MessageKind.CONTROL, MessageKind.HEARTBEAT, MessageKind.REVERSE_ACK]
+)
+
+# Windows CPython's socketpair does not support AF_UNIX; UDS coverage runs on Linux/macOS CI.
+_skip_uds_on_windows = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="AF_UNIX UDS socketpair is not supported on Windows",
 )
 
 
@@ -85,28 +94,28 @@ def test_framereader_feed_eof_fail_closed(blob: bytes) -> None:
         pytest.fail(f"FrameReader.feed_eof must not raise except ProtocolError, got {exc!r}")
 
 
+@_skip_uds_on_windows
 @given(msg=_messages_strategy())
 def test_uds_roundtrip_property(msg: KMessage) -> None:
     try:
         left, right = socketpair()
-    except OSError:
+    except (OSError, ValueError):
         pytest.skip("AF_UNIX socketpair not available")
     try:
         send_message(left, msg)
         assert recv_message(right) == msg
     finally:
         left.close()
-        try:
+        with contextlib.suppress(OSError):
             right.close()
-        except OSError:
-            pass
 
 
+@_skip_uds_on_windows
 @given(blob=st.binary(min_size=1, max_size=256))
 def test_uds_recv_bounded_blob_never_uncaught(blob: bytes) -> None:
     try:
         left, right = socketpair()
-    except OSError:
+    except (OSError, ValueError):
         pytest.skip("AF_UNIX socketpair not available")
     try:
         left.sendall(blob)
@@ -120,7 +129,5 @@ def test_uds_recv_bounded_blob_never_uncaught(blob: bytes) -> None:
             pytest.fail(f"recv_message must not raise except ProtocolError/OSError, got {exc!r}")
     finally:
         left.close()
-        try:
+        with contextlib.suppress(OSError):
             right.close()
-        except OSError:
-            pass
