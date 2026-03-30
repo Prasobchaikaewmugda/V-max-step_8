@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import os
 import socket
+import stat
 import time
 from pathlib import Path
 
@@ -31,9 +32,15 @@ def _is_unix_stream(sock: socket.socket) -> bool:
 
 
 def create_server_socket(path: str, backlog: int = 1) -> socket.socket:
-    """Create a local AF_UNIX / SOCK_STREAM listener (thin helper; no I/O deadlines here)."""
+    """Create a local AF_UNIX / SOCK_STREAM listener (thin helper; no I/O deadlines here).
+
+    If *path* already exists, it must be a socket inode (e.g. stale ``bind``); otherwise fail closed
+    without unlinking (avoids deleting arbitrary files).
+    """
     sock_path = Path(path)
-    with contextlib.suppress(FileNotFoundError):
+    if sock_path.exists():
+        if not stat.S_ISSOCK(sock_path.lstat().st_mode):
+            raise ProtocolError(f"path exists and is not a socket: {sock_path}")
         os.unlink(sock_path)
 
     server = socket.socket(AF_UNIX_FAMILY, socket.SOCK_STREAM)

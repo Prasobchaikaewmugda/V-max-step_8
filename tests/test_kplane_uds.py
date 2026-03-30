@@ -2,10 +2,19 @@ from __future__ import annotations
 
 import contextlib
 import socket
+import tempfile
 import unittest
+from pathlib import Path
 
 from kplane_protocol import MAX_FRAME_SIZE, KMessage, MessageKind, ProtocolError, encode_frame
-from kplane_uds import AF_UNIX_FAMILY, _is_unix_stream, recv_message, send_message, socketpair
+from kplane_uds import (
+    AF_UNIX_FAMILY,
+    _is_unix_stream,
+    create_server_socket,
+    recv_message,
+    send_message,
+    socketpair,
+)
 
 
 def _af_unix_socketpair_available() -> bool:
@@ -76,6 +85,15 @@ class KPlaneUDSAFUnixTests(unittest.TestCase):
         finally:
             left.close()
             right.close()
+
+    def test_create_server_rejects_existing_non_socket_path(self) -> None:
+        """Regular file at bind path: fail closed; do not unlink arbitrary data."""
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / "sockpath"
+            p.write_bytes(b"not a socket")
+            with self.assertRaises(ProtocolError) as ctx:
+                create_server_socket(str(p))
+            self.assertIn("not a socket", str(ctx.exception).lower())
 
     def test_send_fail_closed_closes_socket_after_peer_disconnect(self) -> None:
         """After send_message fails mid-path, socket must not be left open for ambiguous reuse."""
