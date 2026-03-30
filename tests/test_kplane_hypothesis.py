@@ -123,10 +123,8 @@ def test_uds_recv_bounded_blob_never_uncaught(blob: bytes) -> None:
             recv_message(right)
         except ProtocolError:
             pass
-        except OSError:
-            pass
         except Exception as exc:
-            pytest.fail(f"recv_message must not raise except ProtocolError/OSError, got {exc!r}")
+            pytest.fail(f"recv_message must raise only ProtocolError, got {exc!r}")
     finally:
         left.close()
         with contextlib.suppress(OSError):

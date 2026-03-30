@@ -39,6 +39,22 @@ class KPlaneUDSInetTests(unittest.TestCase):
         finally:
             s.close()
 
+    def test_recv_deadline_must_be_positive(self) -> None:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            with self.assertRaises(ValueError):
+                recv_message(s, recv_deadline_sec=0.0)
+        finally:
+            s.close()
+
+    def test_send_deadline_must_be_positive(self) -> None:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            with self.assertRaises(ValueError):
+                send_message(s, KMessage(MessageKind.HEARTBEAT, b"x"), send_deadline_sec=0.0)
+        finally:
+            s.close()
+
 
 @unittest.skipUnless(
     _af_unix_socketpair_available(),
@@ -87,8 +103,26 @@ class KPlaneUDSAFUnixTests(unittest.TestCase):
             left.sendall((3).to_bytes(4, "big") + bytes([255, 0, 0]))
             with self.assertRaises(ProtocolError):
                 recv_message(right)
-            with self.assertRaises((OSError, ProtocolError)):
+            with self.assertRaises(ProtocolError):
                 recv_message(right)
+        finally:
+            left.close()
+            with contextlib.suppress(OSError):
+                right.close()
+
+    def test_stall_after_declared_length_protocol_error(self) -> None:
+        """Peer declares a body length but sends nothing more: must not block past recv deadline."""
+        left, right = socketpair()
+        try:
+            left.sendall((100).to_bytes(4, "big"))
+            with self.assertRaises(ProtocolError) as ctx:
+                recv_message(right, recv_deadline_sec=0.25)
+            self.assertTrue(
+                "transport:" in str(ctx.exception).lower()
+                or "deadline" in str(ctx.exception).lower()
+                or "stalled" in str(ctx.exception).lower(),
+                msg=str(ctx.exception),
+            )
         finally:
             left.close()
             with contextlib.suppress(OSError):

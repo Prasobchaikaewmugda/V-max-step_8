@@ -38,7 +38,7 @@ Stabilize the K-plane local implementation boundary so that:
 1. repo structure is clean
 2. deterministic tests are green
 3. fail-closed cases are explicitly covered
-4. hypothesis-based destruction testing is stabilized
+4. Hypothesis property tests (randomized inputs within configured bounds) are stabilized
 5. no non-K contamination exists
 
 ---
@@ -159,12 +159,12 @@ Only these files:
 - `tests/test_kplane_protocol.py`
 - `tests/test_kplane_uds.py`
 
-### Hypothesis = Destruction Testing
+### Hypothesis = Property testing
 **Use for:**
-- malformed / oversized / truncated / garbage input testing
+- randomized frame bytes and chunking patterns within explicit size limits
 
 **Why this app:**
-- proves fail-closed behavior under hostile inputs
+- extra stress on parser/UDS paths; complements (does not replace) deterministic tests
 
 **Input/context needed:**
 - `tests/test_kplane_hypothesis.py`
@@ -270,11 +270,13 @@ uv run pytest tests/test_kplane_uds.py -q
 
 ## PASS C — Fail-Closed Hardening
 ### Goal
-Make the reject behavior explicit, narrow, and stable.
+Make parser reject behavior explicit; document **receive** and **send** deadlines on the UDS helpers
+as implemented and tested—not a blanket “transport fail-closed proof.”
 
 ### Required law-preserving focus
-- parser must reject malformed or ambiguous input
-- transport must fail closed on unexpected EOF / malformed receive
+- parser must reject malformed or ambiguous **frame** input (tests name concrete cases)
+- `recv_message` / `send_message`: positive deadlines only; bounded read/write via socket timeout;
+  `ProtocolError` only at this API (including wrapped socket errors), as tests show
 - typed lanes must remain:
   - `CONTROL`
   - `HEARTBEAT`
@@ -282,9 +284,9 @@ Make the reject behavior explicit, narrow, and stable.
 - no business logic may be added
 
 ### Definition of done
-- fail-closed cases are visible in tests
+- parser fail-closed cases are visible in tests
+- UDS deadline / EOF / garbage cases match the **worded** guarantees (receive + send), not broader claims
 - no business semantics are introduced
-- parser boundary remains narrow
 
 ### Commit name
 `kplane: fail-closed boundary hardening`
@@ -293,7 +295,7 @@ Make the reject behavior explicit, narrow, and stable.
 
 ## PASS D — Hypothesis Stabilization
 ### Goal
-Stabilize property/destruction tests only after deterministic suite is green.
+Stabilize Hypothesis property tests only after deterministic suite is green.
 
 ### Required command
 ```bash
@@ -312,7 +314,7 @@ uv run pytest tests/test_kplane_hypothesis.py -q
 - or unstable hypothesis cases are quarantined explicitly without polluting deterministic green suite
 
 ### Commit name
-`kplane: hypothesis destruction tests stabilized`
+`kplane: hypothesis property tests stabilized`
 
 ---
 
@@ -376,7 +378,7 @@ This packet is successful only if all of the following are true:
 - K-plane scope stayed narrow
 - repo structure is clean
 - deterministic suite is green
-- fail-closed behavior is proven locally
+- parser fail-closed behavior and **stated** UDS receive/send deadline behavior are covered by tests
 - hypothesis work is stabilized or cleanly quarantined
 - no reviewer forwarding occurred too early
 

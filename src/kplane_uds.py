@@ -3,9 +3,13 @@ from __future__ import annotations
 import contextlib
 import os
 import socket
+import time
 from pathlib import Path
 
 from kplane_protocol import MAX_FRAME_SIZE, KMessage, ProtocolError, decode_frame, encode_frame
+
+# Default wall-clock budget for one bounded UDS operation (send or full recv). Must be positive.
+DEFAULT_UDS_DEADLINE_SEC: float = 60.0
 
 # Typeshed omits AF_UNIX on some platforms (e.g. Windows); CPython may still define it at runtime.
 AF_UNIX_FAMILY: int = getattr(socket, "AF_UNIX", -1)
@@ -41,42 +45,96 @@ def connect_client(path: str) -> socket.socket:
     return client
 
 
-def recv_exact(sock: socket.socket, nbytes: int) -> bytes:
-    """Read exactly nbytes or raise ProtocolError on short / closed read."""
+def recv_exact(sock: socket.socket, nbytes: int, *, deadline: float) -> bytes:
+    """Read exactly nbytes before monotonic *deadline*, or raise ProtocolError.
+
+    OSError from the socket is normalized to ProtocolError (single boundary contract).
+    """
     chunks = bytearray()
     while len(chunks) < nbytes:
-        chunk = sock.recv(nbytes - len(chunks))
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise ProtocolError("recv stalled: deadline exceeded before completing read")
+        sock.settimeout(remaining)
+        try:
+            chunk = sock.recv(nbytes - len(chunks))
+        except OSError as exc:
+            raise ProtocolError(f"transport: {exc}") from exc
         if not chunk:
             raise ProtocolError("unexpected EOF on stream")
         chunks.extend(chunk)
     return bytes(chunks)
 
 
-def send_message(sock: socket.socket, message: KMessage) -> None:
-    if not _is_unix_stream(sock):
-        raise ProtocolError("socket must be AF_UNIX SOCK_STREAM")
-    sock.sendall(encode_frame(message))
+def _sendall_bounded(sock: socket.socket, data: bytes, *, deadline: float) -> None:
+    """Write all *data* before *deadline*; OSError -> ProtocolError."""
+    sent = 0
+    while sent < len(data):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise ProtocolError("send stalled: deadline exceeded before completing send")
+        sock.settimeout(remaining)
+        try:
+            n = sock.send(data[sent:])
+        except OSError as exc:
+            raise ProtocolError(f"transport: {exc}") from exc
+        if n == 0:
+            raise ProtocolError("send made no progress")
+        sent += n
 
 
-def recv_message(sock: socket.socket) -> KMessage:
-    """Receive one message and fail closed on malformed input."""
+def send_message(
+    sock: socket.socket,
+    message: KMessage,
+    *,
+    send_deadline_sec: float = DEFAULT_UDS_DEADLINE_SEC,
+) -> None:
+    """Send one framed message; bounded by *send_deadline_sec* (must be > 0)."""
+    if send_deadline_sec <= 0:
+        raise ValueError("send_deadline_sec must be positive")
     if not _is_unix_stream(sock):
         raise ProtocolError("socket must be AF_UNIX SOCK_STREAM")
+    payload = encode_frame(message)
+    deadline = time.monotonic() + float(send_deadline_sec)
+    old_timeout = sock.gettimeout()
     try:
-        header = recv_exact(sock, 4)
+        _sendall_bounded(sock, payload, deadline=deadline)
+    finally:
+        sock.settimeout(old_timeout)
+
+
+def recv_message(
+    sock: socket.socket,
+    *,
+    recv_deadline_sec: float = DEFAULT_UDS_DEADLINE_SEC,
+) -> KMessage:
+    """Receive one message and fail closed on malformed input.
+
+    *recv_deadline_sec*: wall-clock budget for the entire message (prefix + body); must be > 0.
+    There is no public API to disable this budget.
+
+    Raises only :class:`ProtocolError` (framing, EOF, stall/deadline, wrapped transport).
+    """
+    if recv_deadline_sec <= 0:
+        raise ValueError("recv_deadline_sec must be positive")
+    if not _is_unix_stream(sock):
+        raise ProtocolError("socket must be AF_UNIX SOCK_STREAM")
+    deadline = time.monotonic() + float(recv_deadline_sec)
+    old_timeout = sock.gettimeout()
+    try:
+        header = recv_exact(sock, 4, deadline=deadline)
         frame_len = int.from_bytes(header, "big", signed=False)
         if frame_len == 0:
             raise ProtocolError("zero-length frame is forbidden")
         if frame_len > MAX_FRAME_SIZE:
             raise ProtocolError("declared frame length exceeds MAX_FRAME_SIZE")
-        body = recv_exact(sock, frame_len)
+        body = recv_exact(sock, frame_len, deadline=deadline)
         return decode_frame(body)
     except ProtocolError:
         _fail_closed_shutdown(sock)
         raise
-    except OSError:
-        _fail_closed_shutdown(sock)
-        raise
+    finally:
+        sock.settimeout(old_timeout)
 
 
 def _fail_closed_shutdown(sock: socket.socket) -> None:

@@ -46,8 +46,15 @@ Authorized scope covered here:
 - Local Stream IPC / UDS
 - K framing & parsing
 - typed K-lane handling (`CONTROL`, `HEARTBEAT`, `REVERSE_ACK`)
-- fail-closed rejection on malformed / ambiguous / oversized input
-- local tests proving reject behavior
+- fail-closed rejection on malformed / ambiguous / oversized **frame** input (parser)
+- **Receive path (`recv_message`):** each call uses a **positive wall-clock budget** (default 60s) for
+  the full length-prefix + body read; no public API disables this. Raises only `ProtocolError`
+  (including wrapped socket errors). This bounds the prior “stall after declared length” seam for
+  **receive** only, as covered by unit tests—not a claim of full transport adversarial coverage.
+- **Send path (`send_message`):** each call uses the same style of **positive deadline** (default 60s)
+  for completing the framed write, with the same exception contract.
+- Hypothesis exercises **randomized** parser/UDS inputs within stated **size** bounds; it does not
+  prove safety against arbitrary peer behavior beyond what those tests assert.
 
 Still closed:
 
