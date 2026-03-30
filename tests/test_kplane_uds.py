@@ -5,7 +5,7 @@ import socket
 import unittest
 
 from kplane_protocol import MAX_FRAME_SIZE, KMessage, MessageKind, ProtocolError, encode_frame
-from kplane_uds import AF_UNIX_FAMILY, recv_message, send_message, socketpair
+from kplane_uds import AF_UNIX_FAMILY, _is_unix_stream, recv_message, send_message, socketpair
 
 
 def _af_unix_socketpair_available() -> bool:
@@ -70,9 +70,27 @@ class KPlaneUDSAFUnixTests(unittest.TestCase):
             self.assertEqual(left.type & socket.SOCK_STREAM, socket.SOCK_STREAM)
             self.assertEqual(right.family, AF_UNIX_FAMILY)
             self.assertEqual(right.type & socket.SOCK_STREAM, socket.SOCK_STREAM)
+            # _is_unix_stream must agree with real AF_UNIX stream sockets from socketpair()
+            self.assertTrue(_is_unix_stream(left))
+            self.assertTrue(_is_unix_stream(right))
         finally:
             left.close()
             right.close()
+
+    def test_send_fail_closed_closes_socket_after_peer_disconnect(self) -> None:
+        """After send_message fails mid-path, socket must not be left open for ambiguous reuse."""
+        left, right = socketpair()
+        try:
+            right.close()
+            with self.assertRaises(ProtocolError):
+                send_message(left, KMessage(MessageKind.HEARTBEAT, b"x" * 4096))
+            with self.assertRaises(OSError):
+                left.send(b"z")
+            with self.assertRaises(ProtocolError):
+                send_message(left, KMessage(MessageKind.HEARTBEAT, b"a"))
+        finally:
+            with contextlib.suppress(OSError):
+                left.close()
 
     def test_send_receive_roundtrip(self) -> None:
         left, right = socketpair()

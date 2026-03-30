@@ -16,7 +16,11 @@ AF_UNIX_FAMILY: int = getattr(socket, "AF_UNIX", -1)
 
 
 def _is_unix_stream(sock: socket.socket) -> bool:
-    """True only for AF_UNIX + SOCK_STREAM (flags on type masked)."""
+    """True only for AF_UNIX + SOCK_STREAM (flags on type masked).
+
+    Portability: ``SOCK_STREAM`` is masked with ``0xF`` so platforms that OR extra type bits
+    (e.g. ``SOCK_NONBLOCK``) still classify as stream. This is a heuristic, not a kernel guarantee.
+    """
     if sock.family != AF_UNIX_FAMILY:
         return False
     masked = sock.type
@@ -27,7 +31,7 @@ def _is_unix_stream(sock: socket.socket) -> bool:
 
 
 def create_server_socket(path: str, backlog: int = 1) -> socket.socket:
-    """Create a local AF_UNIX / SOCK_STREAM server socket only."""
+    """Create a local AF_UNIX / SOCK_STREAM listener (thin helper; no I/O deadlines here)."""
     sock_path = Path(path)
     with contextlib.suppress(FileNotFoundError):
         os.unlink(sock_path)
@@ -39,7 +43,7 @@ def create_server_socket(path: str, backlog: int = 1) -> socket.socket:
 
 
 def connect_client(path: str) -> socket.socket:
-    """Connect to a local AF_UNIX / SOCK_STREAM socket only."""
+    """Connect to a local AF_UNIX / SOCK_STREAM path (thin helper; blocking ``connect`` only)."""
     client = socket.socket(AF_UNIX_FAMILY, socket.SOCK_STREAM)
     client.connect(path)
     return client
@@ -89,7 +93,10 @@ def send_message(
     *,
     send_deadline_sec: float = DEFAULT_UDS_DEADLINE_SEC,
 ) -> None:
-    """Send one framed message; bounded by *send_deadline_sec* (must be > 0)."""
+    """Send one framed message; bounded by *send_deadline_sec* (must be > 0).
+
+    On failure once any byte may have been written, the socket is fail-closed like ``recv_message``.
+    """
     if send_deadline_sec <= 0:
         raise ValueError("send_deadline_sec must be positive")
     if not _is_unix_stream(sock):
@@ -99,8 +106,12 @@ def send_message(
     old_timeout = sock.gettimeout()
     try:
         _sendall_bounded(sock, payload, deadline=deadline)
+    except ProtocolError:
+        _fail_closed_shutdown(sock)
+        raise
     finally:
-        sock.settimeout(old_timeout)
+        with contextlib.suppress(OSError):
+            sock.settimeout(old_timeout)
 
 
 def recv_message(
@@ -134,7 +145,8 @@ def recv_message(
         _fail_closed_shutdown(sock)
         raise
     finally:
-        sock.settimeout(old_timeout)
+        with contextlib.suppress(OSError):
+            sock.settimeout(old_timeout)
 
 
 def _fail_closed_shutdown(sock: socket.socket) -> None:

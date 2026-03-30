@@ -276,7 +276,8 @@ as implemented and tested—not a blanket “transport fail-closed proof.”
 ### Required law-preserving focus
 - parser must reject malformed or ambiguous **frame** input (tests name concrete cases)
 - `recv_message` / `send_message`: positive deadlines only; bounded read/write via socket timeout;
-  `ProtocolError` only at this API (including wrapped socket errors), as tests show
+  fail-closed shutdown on failure; `ProtocolError` only at this API, as tests show
+- `create_server_socket` / `connect_client`: out of scope for deadline claims (raw helpers)
 - typed lanes must remain:
   - `CONTROL`
   - `HEARTBEAT`
