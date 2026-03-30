@@ -4,7 +4,24 @@
 **Scope:** K-plane / `wf149active` — `149_STEP8_LAWFUL_HANDOFF_KPLANE_CODING_AUTHORIZATION.md` ACTIVE  
 **Reviewer-forward:** **none** (not Chat 3 / not Chat 4)
 
+**Evidence round:** 2026-03-30 (re-probe on agent host)  
+**EVIDENCE CLOSURE:** **NOT ACHIEVED** — **no** Linux or macOS **same-context** transcript was **obtained** in this round. The single target (*real* POSIX `AF_UNIX` / `socketpair` gate run) **cannot be executed** from this Delivery Engineer environment (Windows-only; WSL/Docker unavailable). This packet is the **exact negative evidence** + verbatim host ceiling for Chat 1 routing.
+
 This packet answers whether **same-context AF_UNIX / socketpair gate evidence** was produced on **Linux or macOS**. **It was not:** the Delivery Engineer agent still has **no access** to a working Linux or macOS Python with `AF_UNIX` for this workspace.
+
+---
+
+## 0. Re-probe: WSL2 and Docker (verbatim — Linux path unavailable)
+
+**Command:** `wsl.exe -e uname -a`
+
+```text
+Failed to attach disk 'D:\VMAX\wsl\ext4.vhdx' to WSL2: The system cannot find the path specified.
+
+Error code: Wsl/Service/CreateInstance/MountDisk/HCS/ERROR_PATH_NOT_FOUND
+```
+
+**Docker / Podman:** `where.exe docker` / `where.exe podman` — **no** executables on `PATH` (same as prior rounds).
 
 ---
 
@@ -28,7 +45,7 @@ This packet answers whether **same-context AF_UNIX / socketpair gate evidence** 
 
 | Role | Git commit (full) |
 |------|-------------------|
-| **Repository HEAD** (includes `scripts/run_linux_af_unix_gates.sh` probe guard + this packet) | Run `git rev-parse HEAD` after checkout — must match the commit that contains this file. |
+| **Repository HEAD** (includes `scripts/run_linux_af_unix_gates.sh` probe guard + this packet) | Run `git rev-parse HEAD` on the commit that contains this file revision (see git log). |
 | **K-plane implementation bodies** (`src/`, `tests/`, `docs/` packets) | `974f68634c9040a2bfedaea0bd8062c0f7b68e0f` (unchanged) |
 
 ---
@@ -93,7 +110,7 @@ tests\test_kplane_hypothesis.py ....ss                                   [ 15%]
 tests\test_kplane_protocol.py ..................                         [ 61%]
 tests\test_kplane_uds.py ....sssssssssss                                 [100%]
 
-======================= 26 passed, 13 skipped in 0.66s ========================
+======================= 26 passed, 13 skipped in 0.63s ========================
 ```
 
 **Interpretation:** **`13 skipped`** — includes **`KPlaneUDSAFUnixTests`** (when `AF_UNIX` unavailable) and Hypothesis UDS tests skipped on Windows. This is **not** a same-context Linux/macOS UDS execution transcript.
