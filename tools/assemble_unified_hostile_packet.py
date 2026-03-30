@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FILES = [
     "src/kplane_protocol.py",
     "src/kplane_uds.py",
+    "tests/conftest.py",
     "tests/test_kplane_protocol.py",
     "tests/test_kplane_uds.py",
     "tests/test_kplane_hypothesis.py",
@@ -125,8 +126,10 @@ def main() -> None:
     if args.section1_from:
         section1_body = Path(args.section1_from).read_text(encoding="utf-8")
         section1_note = (
-            f"SECTION 1 transcript: verbatim from file {args.section1_from!r}; must be produced "
-            f"at commit {commit} (e.g. `scripts/chat3_linux_gates.sh` on Linux, or CI artifact)."
+            f"SECTION 1 transcript: verbatim from file {args.section1_from!r}; produced for the "
+            f"same implementation anchor commit {commit} (e.g. `bash scripts/chat3_linux_gates.sh` "
+            "on Linux at that checkout, or GitHub Actions artifact `chat3-linux-section1`). "
+            "This is not a Windows/win32 gate transcript."
         )
     else:
         ruff_out = _run(["uv", "run", "ruff", "check", "."]).rstrip() + "\n"
@@ -163,19 +166,20 @@ def main() -> None:
     append_line("SECTION 0 — LINKAGE AND COMMIT ANCHOR (single implementation object)")
     append_line("=" * 80)
     append_line(
-        f"Exact commit anchor (full) for SECTION 2 bodies and for the repository state "
-        f"used to produce SECTION 1: {commit}"
+        "Implementation anchor (full) — SECTION 2 bodies and the intended SECTION 1 gate run: "
+        f"{commit}"
     )
     append_line(
-        f"Short: {commit_short}. This packet does not use commit 58ee2eb or any mixed "
-        "anchor; transcript and file bodies refer to the same commit only."
+        f"Short: {commit_short}. SECTION 2 is always `git show {commit_short}:<path>` for the "
+        "listed paths; SECTION 1 must be a gate transcript from that same tree (Linux/POSIX for "
+        "AF_UNIX/UDS same-context proof), not a different implementation commit."
     )
-    if head != commit:
-        append_line(
-            f"Repository HEAD at packet assembly: {head} "
-            f"(SECTION 2 listed paths match anchor {commit_short}; "
-            "later commits may add only packet/tooling files)."
-        )
+    append_line(
+        f"Packet artifact / assembly tip commit may differ from the implementation anchor: "
+        f"repository HEAD at assembly is {head}. "
+        f"If HEAD != {commit_short}, only tooling/packet files changed after {commit_short}; "
+        f"SECTION 2 paths still match anchor {commit}."
+    )
     append_line(
         "SECTION 2 bodies below were produced with: "
         f"`git show {commit}:<path>` for each listed path (byte-for-byte)."
