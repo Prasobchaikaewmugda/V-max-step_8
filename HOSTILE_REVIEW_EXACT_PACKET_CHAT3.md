@@ -4,11 +4,11 @@ Scope: K-plane implementation boundary only. Not H/D-plane, rollout, or topology
 ================================================================================
 SECTION 0 — LINKAGE AND COMMIT ANCHOR (single implementation object)
 ================================================================================
-Exact commit anchor (full) for SECTION 2 bodies and for the repository state used to produce SECTION 1: 4db13f362f9404176834264fb40f1b678365bd90
-Short: 4db13f3. This packet does not use commit 58ee2eb or any mixed anchor; transcript and file bodies refer to the same commit only.
-SECTION 2 bodies below were produced with: `git show 4db13f362f9404176834264fb40f1b678365bd90:<path>` for each listed path (byte-for-byte).
+Exact commit anchor (full) for SECTION 2 bodies and for the repository state used to produce SECTION 1: 90d751e0e4691a499e2d78fbce3ae6e12d6d5886
+Short: 90d751e. This packet does not use commit 58ee2eb or any mixed anchor; transcript and file bodies refer to the same commit only.
+SECTION 2 bodies below were produced with: `git show 90d751e0e4691a499e2d78fbce3ae6e12d6d5886:<path>` for each listed path (byte-for-byte).
 SECTION 1 transcript: captured immediately before assembly from this clone; `git diff <anchor> -- <SECTION 2 paths>` was empty. Environment: Windows, uv-managed Python.
-For a Linux/POSIX SECTION 1 only: run `bash scripts/chat3_linux_gates.sh` on Linux at `git checkout 4db13f362f9404176834264fb40f1b678365bd90`, save stdout to a file, then regenerate this packet with `uv run python tools/assemble_unified_hostile_packet.py --section1-from <file>`.
+For a Linux/POSIX SECTION 1 only: run `bash scripts/chat3_linux_gates.sh` on Linux at `git checkout 90d751e0e4691a499e2d78fbce3ae6e12d6d5886`, save stdout to a file, then regenerate this packet with `uv run python tools/assemble_unified_hostile_packet.py --section1-from <file>`.
 Prior artifacts (e.g. HOSTILE_REVIEW_EXACT_PAYLOAD_AND_GATES.txt) are superseded by this self-contained packet.
 
 ================================================================================
@@ -35,7 +35,7 @@ tests\test_kplane_hypothesis.py ....ss                                   [ 15%]
 tests\test_kplane_protocol.py ..................                         [ 61%]
 tests\test_kplane_uds.py ....sssssssssss                                 [100%]
 
-======================= 26 passed, 13 skipped in 0.65s ========================
+======================= 26 passed, 13 skipped in 0.83s ========================
 
 ================================================================================
 SECTION 2 — EXACT FILE BODIES (full text, not summaries)
