@@ -20,7 +20,7 @@ jobs:
         with:
           version: "latest"
 
-      - - name: Sync and run canonical gate script
+      - name: Sync and run canonical gate script
         run: |
           git rev-parse HEAD
           uv sync --extra dev
