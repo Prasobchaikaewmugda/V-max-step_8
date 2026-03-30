@@ -338,24 +338,20 @@ uv run pytest tests/test_kplane_hypothesis.py -q
 
 ## 7. REVIEWER FORWARDING STATUS
 
-### Can this be sent to reviewer / another review chat now?
-**NOT YET**
+### Hostile review (exact payload)
+This packet describes an **implementation hardening round**, not the review verdict itself. When hardening is complete—repo hygiene done, deterministic gates green (Ruff, mypy, deterministic pytest), fail-closed cases covered, hypothesis stabilized or explicitly quarantined, and no non-K contamination—the **exact payload** (authorized `src/`, `tests/`, and the K-plane packet docs bundled for the handoff) is the material forwarded to the **hostile-review** chat for adjudication.
 
-### Why not yet
-Because this round is still an **implementation hardening round**, not a reviewer round.
+### What stays forbidden
+- Forwarding **before** deterministic green is established (same gate order as Section 8).
+- Replacing the exact file payload with a **summary-only** or partial listing (prior rejection cause).
+- Treating chat output as lock-ready authorization or non-K expansion approval—only the hostile reviewer’s stated verdict applies.
 
-### Conditions before reviewer forwarding becomes lawful
+### Readiness checklist (before forwarding)
 - repo hygiene complete
 - deterministic suite green
 - fail-closed cases explicitly covered
 - hypothesis stabilized or explicitly quarantined
 - no non-K contamination remains
-- then a separate internal status summary may be prepared
-
-Until then:
-- **do not send to reviewer chat**
-- **do not package as adjudication material**
-- **do not claim readiness for non-K expansion**
 
 ---
 
