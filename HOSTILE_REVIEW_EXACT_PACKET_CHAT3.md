@@ -6,7 +6,7 @@ SECTION 0 — LINKAGE AND COMMIT ANCHOR (single implementation object)
 ================================================================================
 Exact commit anchor (full) for SECTION 2 bodies and for the repository state used to produce SECTION 1: 4db13f362f9404176834264fb40f1b678365bd90
 Short: 4db13f3. This packet does not use commit 58ee2eb or any mixed anchor; transcript and file bodies refer to the same commit only.
-Repository HEAD at packet assembly: 05b711ee3a802947c56051f846cd56c15c3ec5a1 (SECTION 2 listed paths match anchor 4db13f3; later commits may add only packet/tooling files).
+Repository HEAD at packet assembly: 9e43e1a5a5c82aa5516f1b69767c73c4f817b445 (SECTION 2 listed paths match anchor 4db13f3; later commits may add only packet/tooling files).
 SECTION 2 bodies below were produced with: `git show 4db13f362f9404176834264fb40f1b678365bd90:<path>` for each listed path (byte-for-byte).
 SECTION 1 transcript: captured immediately before assembly from this clone; `git diff <anchor> -- <SECTION 2 paths>` was empty. Environment: Windows, uv-managed Python.
 For a Linux/POSIX SECTION 1 only: run `bash scripts/chat3_linux_gates.sh` on Linux at `git checkout 4db13f362f9404176834264fb40f1b678365bd90`, save stdout to a file, then regenerate this packet with `uv run python tools/assemble_unified_hostile_packet.py --anchor <same-commit> --section1-from <file>`.
@@ -36,7 +36,7 @@ tests\test_kplane_hypothesis.py ....ss                                   [ 15%]
 tests\test_kplane_protocol.py ..................                         [ 61%]
 tests\test_kplane_uds.py ....sssssssssss                                 [100%]
 
-======================= 26 passed, 13 skipped in 0.64s ========================
+======================= 26 passed, 13 skipped in 0.63s ========================
 
 ================================================================================
 SECTION 2 — EXACT FILE BODIES (full text, not summaries)
