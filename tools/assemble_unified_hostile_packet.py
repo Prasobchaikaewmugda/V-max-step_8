@@ -78,17 +78,34 @@ def main() -> None:
         "scripts/chat3_linux_gates.sh on Linux at the same commit). "
         "If omitted, SECTION 1 is captured on this host via ruff/mypy/pytest.",
     )
+    ap.add_argument(
+        "--anchor",
+        metavar="COMMIT",
+        default=None,
+        help="Commit for SECTION 2 (`git show`) and SECTION 0 anchor text. "
+        "Default: HEAD. Use when committing the packet one commit after the "
+        "implementation snapshot so the label still names the code commit.",
+    )
     args = ap.parse_args()
 
+    commit = args.anchor
+    if commit is None:
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
     commit = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
+        ["git", "rev-parse", commit],
         cwd=ROOT,
         capture_output=True,
         text=True,
         check=True,
     ).stdout.strip()
     commit_short = subprocess.run(
-        ["git", "rev-parse", "--short", "HEAD"],
+        ["git", "rev-parse", "--short", commit],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -96,6 +113,14 @@ def main() -> None:
     ).stdout.strip()
 
     verify_clean_paths(commit)
+
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
 
     if args.section1_from:
         section1_body = Path(args.section1_from).read_text(encoding="utf-8")
@@ -145,6 +170,12 @@ def main() -> None:
         f"Short: {commit_short}. This packet does not use commit 58ee2eb or any mixed "
         "anchor; transcript and file bodies refer to the same commit only."
     )
+    if head != commit:
+        append_line(
+            f"Repository HEAD at packet assembly: {head} "
+            f"(SECTION 2 listed paths match anchor {commit_short}; "
+            "later commits may add only packet/tooling files)."
+        )
     append_line(
         "SECTION 2 bodies below were produced with: "
         f"`git show {commit}:<path>` for each listed path (byte-for-byte)."
@@ -154,7 +185,8 @@ def main() -> None:
         append_line(
             "For a Linux/POSIX SECTION 1 only: run `bash scripts/chat3_linux_gates.sh` on Linux "
             f"at `git checkout {commit}`, save stdout to a file, then regenerate this packet with "
-            "`uv run python tools/assemble_unified_hostile_packet.py --section1-from <file>`."
+            "`uv run python tools/assemble_unified_hostile_packet.py --anchor <same-commit> "
+            "--section1-from <file>`."
         )
     append_line(
         "Prior artifacts (e.g. HOSTILE_REVIEW_EXACT_PAYLOAD_AND_GATES.txt) are superseded "
