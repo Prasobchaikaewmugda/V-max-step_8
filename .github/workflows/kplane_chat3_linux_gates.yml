@@ -20,13 +20,14 @@ jobs:
         with:
           version: "latest"
 
-      - name: Sync and run canonical gate script
+      - - name: Sync and run canonical gate script
         run: |
           git rev-parse HEAD
           uv sync --extra dev
-          bash scripts/chat3_linux_gates.sh | tee chat3_linux_section1.txt
+          bash scripts/chat3_linux_gates.sh > chat3_linux_section1.txt 2>&1
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: chat3-linux-section1
           path: chat3_linux_section1.txt
