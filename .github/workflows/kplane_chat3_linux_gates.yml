@@ -1,0 +1,28 @@
+# Optional: produces a Linux/POSIX SECTION 1 transcript at the checked-out commit
+# (same tree as CI). Download artifact `chat3-linux-section1`, then:
+#   uv run python tools/assemble_unified_hostile_packet.py --section1-from <saved.txt>
+name: K-plane Chat3 Linux gates
+
+on:
+  workflow_dispatch:
+
+jobs:
+  linux-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Sync and run canonical gate script
+        run: |
+          uv sync
+          bash scripts/chat3_linux_gates.sh | tee chat3_linux_section1.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chat3-linux-section1
+          path: chat3_linux_section1.txt

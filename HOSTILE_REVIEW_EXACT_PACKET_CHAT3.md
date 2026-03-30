@@ -2,15 +2,17 @@ HOSTILE REVIEW — EXACT PAYLOAD PACKET (single file)
 Scope: K-plane implementation boundary only. Not H/D-plane, rollout, or topology.
 
 ================================================================================
-SECTION 0 — LINKAGE AND COMMIT ANCHOR
+SECTION 0 — LINKAGE AND COMMIT ANCHOR (single implementation object)
 ================================================================================
-Exact commit anchor (full) for implementation + packet docs (SECTION 2 bodies): 974f68634c9040a2bfedaea0bd8062c0f7b68e0f
-Working tree vs 974f686: for the eight paths listed under SECTION 2, `git diff 974f68634c9040a2bfedaea0bd8062c0f7b68e0f -- <each path>` was empty before this packet was assembled; SECTION 2 bodies were read from disk and match that commit.
-Gate transcript (SECTION 1): produced immediately before assembly, same working tree, same repository root, commands exactly as stated. Environment: Windows, uv-managed Python.
-Prior artifact HOSTILE_REVIEW_EXACT_PAYLOAD_AND_GATES.txt (if present) is superseded by SECTION 1 here; this packet is self-contained.
+Exact commit anchor (full) for SECTION 2 bodies and for the repository state used to produce SECTION 1: 4db13f362f9404176834264fb40f1b678365bd90
+Short: 4db13f3. This packet does not use commit 58ee2eb or any mixed anchor; transcript and file bodies refer to the same commit only.
+SECTION 2 bodies below were produced with: `git show 4db13f362f9404176834264fb40f1b678365bd90:<path>` for each listed path (byte-for-byte).
+SECTION 1 transcript: captured immediately before assembly from this clone; `git diff <anchor> -- <SECTION 2 paths>` was empty. Environment: Windows, uv-managed Python.
+For a Linux/POSIX SECTION 1 only: run `bash scripts/chat3_linux_gates.sh` on Linux at `git checkout 4db13f362f9404176834264fb40f1b678365bd90`, save stdout to a file, then regenerate this packet with `uv run python tools/assemble_unified_hostile_packet.py --section1-from <file>`.
+Prior artifacts (e.g. HOSTILE_REVIEW_EXACT_PAYLOAD_AND_GATES.txt) are superseded by this self-contained packet.
 
 ================================================================================
-SECTION 1 — VERBATIM GATE EVIDENCE
+SECTION 1 — VERBATIM GATE EVIDENCE (same commit as SECTION 0 / SECTION 2)
 ================================================================================
 Command: uv run ruff check .
 --- stdout ---
@@ -33,7 +35,7 @@ tests\test_kplane_hypothesis.py ....ss                                   [ 15%]
 tests\test_kplane_protocol.py ..................                         [ 61%]
 tests\test_kplane_uds.py ....sssssssssss                                 [100%]
 
-======================= 26 passed, 13 skipped in 0.63s ========================
+======================= 26 passed, 13 skipped in 0.65s ========================
 
 ================================================================================
 SECTION 2 — EXACT FILE BODIES (full text, not summaries)
@@ -314,25 +316,6 @@ def socketpair() -> tuple[socket.socket, socket.socket]:
     """Local full-duplex AF_UNIX / SOCK_STREAM pair for tests only."""
     return socket.socketpair(AF_UNIX_FAMILY, socket.SOCK_STREAM)
 <<< END FILE src/kplane_uds.py >>>
-
-<<< BEGIN FILE tests/conftest.py >>>
-"""Pytest + Hypothesis wiring for K-plane tests only."""
-
-from __future__ import annotations
-
-from hypothesis import settings
-
-# Reproducible property tests: same examples for a given test body (no RNG drift across CI).
-settings.register_profile(
-    "kplane_deterministic",
-    derandomize=True,
-    max_examples=100,
-)
-
-
-def pytest_configure(config: object) -> None:
-    settings.load_profile("kplane_deterministic")
-<<< END FILE tests/conftest.py >>>
 
 <<< BEGIN FILE tests/test_kplane_protocol.py >>>
 from __future__ import annotations
@@ -1332,3 +1315,4 @@ This packet is successful only if all of the following are true:
 
 END OF PACKET
 <<< END FILE docs/STEP_8_KPLANE_HARDENING_PASS_PACKET_DRAFT_1.md >>>
+
