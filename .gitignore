@@ -1,4 +1,8 @@
 .venv/
+# IDE / local workflow residue (not K-plane implementation)
+.idea/
+STEP8_CHAT2_DELIVERY_ENGINEER_BOOT_PROMPT_V1
+
 __pycache__/
 *.py[cod]
 .ruff_cache/
