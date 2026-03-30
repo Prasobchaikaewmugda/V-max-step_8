@@ -18,7 +18,23 @@ uname -a || true
 echo "=== PYTHON (uv) ==="
 uv run python -V
 echo "=== AF_UNIX probe ==="
-uv run python -c "import socket; print('AF_UNIX:', getattr(socket, 'AF_UNIX', None)); a,b=socket.socketpair(getattr(socket,'AF_UNIX'), socket.SOCK_STREAM); print('socketpair: ok'); a.close(); b.close()"
+uv run python - <<'PY'
+import socket
+import sys
+
+u = getattr(socket, "AF_UNIX", None)
+print("AF_UNIX:", u)
+if u is None:
+    sys.stderr.write(
+        "ERROR: AF_UNIX not available on this Python interpreter. "
+        "Run this script on Linux or macOS with AF_UNIX socketpair support.\n"
+    )
+    raise SystemExit(1)
+a, b = socket.socketpair(u, socket.SOCK_STREAM)
+print("socketpair: ok")
+a.close()
+b.close()
+PY
 echo "=== GIT COMMIT ==="
 git rev-parse HEAD
 echo "=== RUFF ==="
