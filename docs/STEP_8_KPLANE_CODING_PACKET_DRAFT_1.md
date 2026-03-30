@@ -49,12 +49,14 @@ Authorized scope covered here:
 - fail-closed rejection on malformed / ambiguous / oversized **frame** input (parser)
 - **Bounded I/O (only `send_message` / `recv_message`):** each call uses a **positive wall-clock budget**
   (default 60s) for that operation; no public API disables it. On failure after I/O may have started,
-  the socket is fail-closed (shutdown/close). Raises only `ProtocolError` (including wrapped socket
-  errors), as covered by unit tests. This is **not** a claim of full-stack “transport hardening.”
+  the socket is fail-closed (shutdown/close). These entry points raise **only `ProtocolError`** for
+  this boundary (invalid deadlines, framing, transport wraps, EOF/stall), as covered by unit tests.
+  This is **not** a claim of full-stack “transport hardening.”
 - **`create_server_socket` / `connect_client`:** thin helpers (bind/listen; blocking `connect` only).
-  They do **not** apply send/recv deadlines. **`create_server_socket`** only removes an existing path
-  if `stat` shows it is a **socket** (stale bind); if a file or other non-socket exists at that path,
-  it raises `ProtocolError` and does **not** unlink (fail-closed against arbitrary path reuse).
+  They do **not** apply send/recv deadlines. **`create_server_socket`:** if the path already exists,
+  `lstat` must show a **socket** inode before unlink; otherwise `ProtocolError` and **no** unlink.
+  This avoids accidental deletion of wrong inode types in the usual case; it does **not** assert
+  safety against **concurrent** path mutation (TOCTOU/races are out of scope for this helper).
 - Hypothesis exercises **randomized** parser/UDS inputs within stated **size** bounds; it does not
   prove safety against arbitrary peer behavior beyond what those tests assert.
 

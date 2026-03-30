@@ -36,6 +36,9 @@ def create_server_socket(path: str, backlog: int = 1) -> socket.socket:
 
     If *path* already exists, it must be a socket inode (e.g. stale ``bind``); otherwise fail closed
     without unlinking (avoids deleting arbitrary files).
+
+    This is **not** race-free against concurrent creation/replacement of *path* by another process:
+    the ``lstat`` / ``unlink`` sequence is best-effort for the common single-writer case only.
     """
     sock_path = Path(path)
     if sock_path.exists():
@@ -102,10 +105,11 @@ def send_message(
 ) -> None:
     """Send one framed message; bounded by *send_deadline_sec* (must be > 0).
 
+    Raises ``ProtocolError`` for invalid deadline, wrong socket type, framing, or transport.
     On failure once any byte may have been written, the socket is fail-closed like ``recv_message``.
     """
     if send_deadline_sec <= 0:
-        raise ValueError("send_deadline_sec must be positive")
+        raise ProtocolError("send_deadline_sec must be positive")
     if not _is_unix_stream(sock):
         raise ProtocolError("socket must be AF_UNIX SOCK_STREAM")
     payload = encode_frame(message)
@@ -131,10 +135,10 @@ def recv_message(
     *recv_deadline_sec*: wall-clock budget for the entire message (prefix + body); must be > 0.
     There is no public API to disable this budget.
 
-    Raises only :class:`ProtocolError` (framing, EOF, stall/deadline, wrapped transport).
+    Raises only :class:`ProtocolError` (invalid deadline, framing, EOF, stall/deadline, transport).
     """
     if recv_deadline_sec <= 0:
-        raise ValueError("recv_deadline_sec must be positive")
+        raise ProtocolError("recv_deadline_sec must be positive")
     if not _is_unix_stream(sock):
         raise ProtocolError("socket must be AF_UNIX SOCK_STREAM")
     deadline = time.monotonic() + float(recv_deadline_sec)

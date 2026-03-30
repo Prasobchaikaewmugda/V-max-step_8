@@ -51,7 +51,7 @@ class KPlaneUDSInetTests(unittest.TestCase):
     def test_recv_deadline_must_be_positive(self) -> None:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
-            with self.assertRaises(ValueError):
+            with self.assertRaises(ProtocolError):
                 recv_message(s, recv_deadline_sec=0.0)
         finally:
             s.close()
@@ -59,7 +59,7 @@ class KPlaneUDSInetTests(unittest.TestCase):
     def test_send_deadline_must_be_positive(self) -> None:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
-            with self.assertRaises(ValueError):
+            with self.assertRaises(ProtocolError):
                 send_message(s, KMessage(MessageKind.HEARTBEAT, b"x"), send_deadline_sec=0.0)
         finally:
             s.close()

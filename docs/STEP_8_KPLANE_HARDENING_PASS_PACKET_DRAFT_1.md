@@ -276,9 +276,11 @@ as implemented and tested—not a blanket “transport fail-closed proof.”
 ### Required law-preserving focus
 - parser must reject malformed or ambiguous **frame** input (tests name concrete cases)
 - `recv_message` / `send_message`: positive deadlines only; bounded read/write via socket timeout;
-  fail-closed shutdown on failure; `ProtocolError` only at this API, as tests show
+  fail-closed shutdown on failure after I/O may have started; **`ProtocolError` only** at this API
+  (including non-positive deadlines), as tests show
 - `create_server_socket` / `connect_client`: out of scope for deadline claims (raw helpers);
-  `create_server_socket` must fail closed if the bind path exists and is not a socket (see tests)
+  `create_server_socket`: if path exists and is not a socket, `ProtocolError` and no unlink (see tests);
+  **no** claim of atomicity vs concurrent path mutation
 - typed lanes must remain:
   - `CONTROL`
   - `HEARTBEAT`
