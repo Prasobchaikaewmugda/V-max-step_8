@@ -64,6 +64,28 @@ class KPlaneUDSInetTests(unittest.TestCase):
         finally:
             s.close()
 
+    def test_send_deadline_rejects_nan_inf_and_non_numeric(self) -> None:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            for bad in (float("nan"), float("inf"), float("-inf"), "bad"):
+                with self.subTest(bad=bad), self.assertRaises(ProtocolError):
+                    send_message(
+                        s,
+                        KMessage(MessageKind.HEARTBEAT, b"x"),
+                        send_deadline_sec=bad,  # type: ignore[arg-type]
+                    )
+        finally:
+            s.close()
+
+    def test_recv_deadline_rejects_nan_inf_and_non_numeric(self) -> None:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            for bad in (float("nan"), float("inf"), float("-inf"), "bad"):
+                with self.subTest(bad=bad), self.assertRaises(ProtocolError):
+                    recv_message(s, recv_deadline_sec=bad)  # type: ignore[arg-type]
+        finally:
+            s.close()
+
 
 @unittest.skipUnless(
     _af_unix_socketpair_available(),

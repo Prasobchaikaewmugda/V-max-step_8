@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import contextlib
+import math
 import os
 import socket
 import stat
 import time
 from pathlib import Path
+from typing import Any, cast
 
 from kplane_protocol import MAX_FRAME_SIZE, KMessage, ProtocolError, decode_frame, encode_frame
 
@@ -14,6 +16,17 @@ DEFAULT_UDS_DEADLINE_SEC: float = 60.0
 
 # Typeshed omits AF_UNIX on some platforms (e.g. Windows); CPython may still define it at runtime.
 AF_UNIX_FAMILY: int = getattr(socket, "AF_UNIX", -1)
+
+
+def _validate_deadline_sec(name: str, value: object) -> float:
+    """Parse a wall-clock deadline in seconds; raise :class:`ProtocolError` if unusable."""
+    try:
+        sec = float(cast(Any, value))
+    except (TypeError, ValueError) as exc:
+        raise ProtocolError(f"{name} must be a finite positive number") from exc
+    if not math.isfinite(sec) or sec <= 0:
+        raise ProtocolError(f"{name} must be a finite positive number")
+    return sec
 
 
 def _is_unix_stream(sock: socket.socket) -> bool:
@@ -70,7 +83,7 @@ def recv_exact(sock: socket.socket, nbytes: int, *, deadline: float) -> bytes:
         if remaining <= 0:
             raise ProtocolError("recv stalled: deadline exceeded before completing read")
         try:
-            sock.settimeout(remaining)  # ย้ายเข้ามาใน try
+            sock.settimeout(remaining)
             chunk = sock.recv(nbytes - len(chunks))
         except OSError as exc:
             raise ProtocolError(f"transport: {exc}") from exc
@@ -89,11 +102,11 @@ def _sendall_bounded(sock: socket.socket, data: bytes, *, deadline: float) -> No
         if remaining <= 0:
             raise ProtocolError("send stalled: deadline exceeded before completing send")
         try:
-            sock.settimeout(remaining)  # ย้ายเข้ามาใน try
+            sock.settimeout(remaining)
             n = sock.send(data[sent:])
         except OSError as exc:
             raise ProtocolError(f"transport: {exc}") from exc
-            
+
         if n == 0:
             raise ProtocolError("send made no progress")
         sent += n
@@ -110,12 +123,11 @@ def send_message(
     Raises ``ProtocolError`` for invalid deadline, wrong socket type, framing, or transport.
     On failure once any byte may have been written, the socket is fail-closed like ``recv_message``.
     """
-    if send_deadline_sec <= 0:
-        raise ProtocolError("send_deadline_sec must be positive")
+    sec = _validate_deadline_sec("send_deadline_sec", send_deadline_sec)
     if not _is_unix_stream(sock):
         raise ProtocolError("socket must be AF_UNIX SOCK_STREAM")
     payload = encode_frame(message)
-    deadline = time.monotonic() + float(send_deadline_sec)
+    deadline = time.monotonic() + sec
     try:
         old_timeout = sock.gettimeout()
         try:
@@ -142,11 +154,10 @@ def recv_message(
 
     Raises only :class:`ProtocolError` (invalid deadline, framing, EOF, stall/deadline, transport).
     """
-    if recv_deadline_sec <= 0:
-        raise ProtocolError("recv_deadline_sec must be positive")
+    sec = _validate_deadline_sec("recv_deadline_sec", recv_deadline_sec)
     if not _is_unix_stream(sock):
         raise ProtocolError("socket must be AF_UNIX SOCK_STREAM")
-    deadline = time.monotonic() + float(recv_deadline_sec)
+    deadline = time.monotonic() + sec
     try:
         old_timeout = sock.gettimeout()
         try:
