@@ -69,11 +69,12 @@ def recv_exact(sock: socket.socket, nbytes: int, *, deadline: float) -> bytes:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise ProtocolError("recv stalled: deadline exceeded before completing read")
-        sock.settimeout(remaining)
         try:
+            sock.settimeout(remaining)  # ย้ายเข้ามาใน try
             chunk = sock.recv(nbytes - len(chunks))
         except OSError as exc:
             raise ProtocolError(f"transport: {exc}") from exc
+
         if not chunk:
             raise ProtocolError("unexpected EOF on stream")
         chunks.extend(chunk)
@@ -87,11 +88,12 @@ def _sendall_bounded(sock: socket.socket, data: bytes, *, deadline: float) -> No
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise ProtocolError("send stalled: deadline exceeded before completing send")
-        sock.settimeout(remaining)
         try:
+            sock.settimeout(remaining)  # ย้ายเข้ามาใน try
             n = sock.send(data[sent:])
         except OSError as exc:
             raise ProtocolError(f"transport: {exc}") from exc
+            
         if n == 0:
             raise ProtocolError("send made no progress")
         sent += n
@@ -114,15 +116,18 @@ def send_message(
         raise ProtocolError("socket must be AF_UNIX SOCK_STREAM")
     payload = encode_frame(message)
     deadline = time.monotonic() + float(send_deadline_sec)
-    old_timeout = sock.gettimeout()
     try:
-        _sendall_bounded(sock, payload, deadline=deadline)
-    except ProtocolError:
-        _fail_closed_shutdown(sock)
-        raise
-    finally:
-        with contextlib.suppress(OSError):
-            sock.settimeout(old_timeout)
+        old_timeout = sock.gettimeout()
+        try:
+            _sendall_bounded(sock, payload, deadline=deadline)
+        except ProtocolError:
+            _fail_closed_shutdown(sock)
+            raise
+        finally:
+            with contextlib.suppress(OSError):
+                sock.settimeout(old_timeout)
+    except OSError as exc:
+        raise ProtocolError(f"transport: {exc}") from exc
 
 
 def recv_message(
@@ -142,22 +147,25 @@ def recv_message(
     if not _is_unix_stream(sock):
         raise ProtocolError("socket must be AF_UNIX SOCK_STREAM")
     deadline = time.monotonic() + float(recv_deadline_sec)
-    old_timeout = sock.gettimeout()
     try:
-        header = recv_exact(sock, 4, deadline=deadline)
-        frame_len = int.from_bytes(header, "big", signed=False)
-        if frame_len == 0:
-            raise ProtocolError("zero-length frame is forbidden")
-        if frame_len > MAX_FRAME_SIZE:
-            raise ProtocolError("declared frame length exceeds MAX_FRAME_SIZE")
-        body = recv_exact(sock, frame_len, deadline=deadline)
-        return decode_frame(body)
-    except ProtocolError:
-        _fail_closed_shutdown(sock)
-        raise
-    finally:
-        with contextlib.suppress(OSError):
-            sock.settimeout(old_timeout)
+        old_timeout = sock.gettimeout()
+        try:
+            header = recv_exact(sock, 4, deadline=deadline)
+            frame_len = int.from_bytes(header, "big", signed=False)
+            if frame_len == 0:
+                raise ProtocolError("zero-length frame is forbidden")
+            if frame_len > MAX_FRAME_SIZE:
+                raise ProtocolError("declared frame length exceeds MAX_FRAME_SIZE")
+            body = recv_exact(sock, frame_len, deadline=deadline)
+            return decode_frame(body)
+        except ProtocolError:
+            _fail_closed_shutdown(sock)
+            raise
+        finally:
+            with contextlib.suppress(OSError):
+                sock.settimeout(old_timeout)
+    except OSError as exc:
+        raise ProtocolError(f"transport: {exc}") from exc
 
 
 def _fail_closed_shutdown(sock: socket.socket) -> None:
