@@ -24,7 +24,7 @@ def _is_unix_stream(sock: socket.socket) -> bool:
     """
     if sock.family != AF_UNIX_FAMILY:
         return False
-    masked = sock.type
+    masked: int = int(sock.type)
     if hasattr(socket, "SOCK_NONBLOCK"):
         masked &= ~socket.SOCK_NONBLOCK
     # Windows may not define SOCK_NONBLOCK; mask common flag bits if present
